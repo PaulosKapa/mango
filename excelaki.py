@@ -31,31 +31,69 @@ conn.commit()
 
 def save_to_db(extracted_data):
     cursor.execute('''
-        INSERT INTO incidents (names, plates, events, full_text_processed)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO incidents (
+            category,
+            reg_number,
+            name,
+            location,
+            incident_description,
+            destination,
+            "Possible malfunction",
+            "Possible resolution",
+            "Recommented autorepair-shop",
+            "Is final destination within the country?",
+            "Was delay-voucher used?",
+            "Was a link for geolocation sent?",
+            "Was a declaration needed?",
+            "Is a fast track case?",
+            "Is it a fraud?",
+            "Communication quality",
+            "Tags/Short summary"
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
-        json.dumps(extracted_data.get("names", [])),
-        json.dumps(extracted_data.get("plates", [])),
-        json.dumps(extracted_data.get("events", [])),
-        extracted_data.get("full_text_processed", "")
+        data.get("Incident Category", ""),
+        data.get("Reg. number", ""),
+        data.get("Name", ""),
+        data.get("Location", ""),
+        data.get("Incident Description", ""),
+        data.get("Destination", ""),
+        data.get("Possible malfunction", ""),
+        data.get("Possible resolution", ""),
+        data.get("Recommented autorepair-shop", ""),
+        data.get("Is final destination within the country?", ""),
+        data.get("Was delay-voucher used?", ""),
+        data.get("Was a link for geolocation sent?", ""),
+        data.get("Was a declaration needed?", ""),
+        data.get("Is a fast track case?", ""),
+        data.get("Is it a fraud?", ""),
+        data.get("Communication quality", ""),
+        data.get("Tags/Short summary", "")
     ))
     conn.commit()
-    print("Saved incident data to database.")
+    print("Saved answers to database chat_data.db")
 
 # --- Conversation State (global, for demo purposes) ---
 conversation_state = {
     "current_question_index": -1,
     "current_incident_text": "",
     "mock_questions": [
-        "Ποια ήταν η ακριβής ώρα του συμβάντος; (π.χ. 14:30)",
-        "Σε ποια τοποθεσία συνέβη το συμβάν; (Οδός, αριθμός, περιοχή)",
-        "Υπήρχαν μάρτυρες στο σημείο;",
-        "Ποια ήταν η πινακίδα του άλλου οχήματος;",
-        "Ποιο ήταν το χρώμα του άλλου οχήματος;",
-        "Ποιο ήταν το όνομα του οδηγού του άλλου οχήματος;",
-        "Υπάρχουν κάποιες φωτογραφίες της ζημιάς;",
-        "Ποια ήταν η ταχύτητα των οχημάτων πριν τη σύγκρουση;"
-    ]
+         "Please describe what happened:",
+    "What is your plate registration number?",
+    "What is your name?",
+    "Where are you?",
+    "Where would you like to go?",
+    "Possible malfunction?",
+    "Possible resolution?",
+    "Recommented autorepair-shop?",
+    "Is final destination within the country? (Yes/No)",
+    "Was delay-voucher used? (Yes/No)",
+    "Was a link for geolocation sent? (Yes/No)",
+    "Was a declaration needed? (Yes/No)",
+    "Is it a fast track case? (Yes/No)",
+    "Is it a fraud? (Yes/No)",
+    "Communication quality?",
+    "Tags/Short summary?"
+]
 }
 
 # --- Start conversation ---
