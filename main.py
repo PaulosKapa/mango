@@ -6,7 +6,7 @@ def words(specified):
             words = line.split()
             for word in words:
                 if word == specified:
-                    return word
-
+                    lines_words.append(words)
+    return(lines_words)
 
 print(words("πινακίδα"))
