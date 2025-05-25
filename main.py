@@ -122,7 +122,7 @@ def submit_answer():
             "question": "Όλες οι ερωτήσεις απαντήθηκαν. Δείτε τα τελικά αποτελέσματα.",
             "status": "finished",
             "extracted_data": extracted_data
-        })
+        })#
 
 # --- Run server ---
 if __name__ == '__main__':
