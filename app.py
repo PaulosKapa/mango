@@ -11,7 +11,7 @@ ctk.set_default_color_theme("dark-blue")
 class SimpleNLPApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("🍍 ANANAS Simple Bot")
+        self.root.title("Mango🥭 by Ananas🍍")
         self.root.geometry("800x500")
         self.backend_url = "http://127.0.0.1:5000"
 
