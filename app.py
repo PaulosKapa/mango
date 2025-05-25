@@ -1,159 +1,138 @@
-import tkinter as tk
-from tkinter import scrolledtext, messagebox
+import customtkinter as ctk
 import requests
-import json
+from PIL import Image, ImageTk
+import os
+from customtkinter import CTkImage
 
-class NLPQuestionApp:
+# Initialize theme
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("dark-blue")
+
+class SimpleNLPApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Incident Report via Questions")
-        self.root.geometry("850x700") # Increased size to accommodate more info
-        self.root.resizable(False, False)
-
+        self.root.title("🍍 ANANAS Simple Bot")
+        self.root.geometry("800x500")
         self.backend_url = "http://127.0.0.1:5000"
 
-        # --- Question Display Frame ---
-        question_frame = tk.LabelFrame(root, text="Current Question", padx=15, pady=15)
-        question_frame.pack(padx=20, pady=15, fill="x")
+        self.placeholder_text = "Πείτε μας τι συνέβη..."
 
-        self.question_label = tk.Label(question_frame, text="Click 'Start Conversation' to begin.", font=("Arial", 16, "bold"), wraplength=750, justify="left")
-        self.question_label.pack(pady=10, anchor="w")
+        # Chat display
+        self.chat_window = ctk.CTkTextbox(
+            root, wrap="word", font=("Segoe UI", 14),
+            state="disabled", corner_radius=10, width=760, height=300
+        )
+        self.chat_window.place(x=20, y=20)
 
-        # --- Answer Input Frame ---
-        answer_frame = tk.LabelFrame(root, text="Your Answer", padx=15, pady=10)
-        answer_frame.pack(padx=20, pady=10, fill="x")
+        # Top banner (image + title)
+        self.top_frame = ctk.CTkFrame(
+            root, corner_radius=0, width=760, height=100,
+            fg_color=self.chat_window.cget("fg_color"), border_width=0
+        )
+        self.top_frame.place(x=250, y=50)
 
-        self.answer_entry = tk.Entry(answer_frame, width=60, font=("Arial", 14))
-        self.answer_entry.pack(side=tk.LEFT, padx=5, pady=5, fill="x", expand=True)
-        self.answer_entry.bind("<Return>", lambda event: self.submit_answer_wrapper()) # Allow pressing Enter to submit
+        # Load image (optional)
+        img_path = "pineapple.png"
+        if os.path.exists(img_path):
+            pil_img = Image.open(img_path).resize((60, 80), Image.Resampling.LANCZOS)
+            img = ImageTk.PhotoImage(pil_img)
+            img_label = ctk.CTkLabel(self.top_frame, image=img, text="")
+            img_label.image = img
+            img_label.pack(side="left", padx=10, pady=10)
 
-        self.submit_button = tk.Button(answer_frame, text="Submit Answer", command=self.submit_answer_wrapper, font=("Arial", 12), bg="#007bff", fg="white")
-        self.submit_button.pack(side=tk.RIGHT, padx=5)
+        # Title text
+        text_label = ctk.CTkLabel(
+            self.top_frame,
+            text="We are here -\nfor you",
+            font=("Segoe Script", 24),
+            justify="center"
+        )
+        text_label.pack(side="left", expand=True, fill="both", padx=10, pady=10)
 
-        # --- Control Buttons ---
-        control_frame = tk.Frame(root)
-        control_frame.pack(pady=10)
+        self.chat_window.configure(state="normal")
+        self.chat_window.insert("end", "\n\n")
+        self.chat_window.configure(state="disabled")
 
-        self.start_button = tk.Button(control_frame, text="Start New Conversation", command=self.start_conversation, font=("Arial", 12), bg="#28a745", fg="white")
-        self.start_button.pack(side=tk.LEFT, padx=10)
+        self.frame_hidden = False
 
-        # --- Conversation History Frame ---
-        history_frame = tk.LabelFrame(root, text="Conversation History", padx=10, pady=10)
-        history_frame.pack(padx=20, pady=10, fill="both", expand=True)
+        # Entry field
+        self.entry = ctk.CTkEntry(
+            root, font=("Segoe UI", 14),
+            placeholder_text=self.placeholder_text,
+            width=700, height=70, corner_radius=20
+        )
+        self.entry.place(x=20, y=340)
+        self.entry.bind("<Return>", lambda e: self.send_answer())
 
-        self.history_text_area = scrolledtext.ScrolledText(history_frame, wrap=tk.WORD, width=70, height=8, font=("Arial", 11), bg="#f8f9fa", fg="#333")
-        self.history_text_area.pack(padx=5, pady=5, fill="both", expand=True)
-        self.history_text_area.insert(tk.END, "Question and answers will appear here.\n")
-        self.history_text_area.config(state=tk.DISABLED) # Make it read-only
+        # Send button
+        icon_path = "button.png"
+        if os.path.exists(icon_path):
+            pil_icon = Image.open(icon_path).resize((15, 15), Image.Resampling.LANCZOS)
+            ctk_icon = CTkImage(light_image=pil_icon, dark_image=pil_icon, size=(25, 25))
+            self.send_button = ctk.CTkButton(
+                root, image=ctk_icon, text="", width=35, height=35,
+                command=self.send_answer
+            )
+        else:
+            self.send_button = ctk.CTkButton(
+                root, text="Αποστολή", command=self.send_answer,
+                width=100, height=40
+            )
+        self.send_button.place(x=730, y=338)
 
-        # --- Processed Results Display Frame ---
-        results_frame = tk.LabelFrame(root, text="Real-time Processed Data", padx=10, pady=10)
-        results_frame.pack(padx=20, pady=15, fill="both", expand=True)
+        # Begin conversation with AI
+        self.start_conversation()
 
-        self.results_text_area = scrolledtext.ScrolledText(results_frame, wrap=tk.WORD, width=70, height=10, font=("Courier New", 11), bg="#e9ecef", fg="#333")
-        self.results_text_area.pack(padx=5, pady=5, fill="both", expand=True)
-        self.results_text_area.insert(tk.END, "Extracted data will update after each answer.")
-        self.results_text_area.config(state=tk.DISABLED)
-
-    def update_text_area(self, text_area, content, append=False):
-        text_area.config(state=tk.NORMAL)
-        if not append:
-            text_area.delete(1.0, tk.END)
-        text_area.insert(tk.END, content)
-        text_area.yview(tk.END) # Scroll to the bottom
-        text_area.config(state=tk.DISABLED)
+    def update_chat(self, text, append=True):
+        self.chat_window.configure(state="normal")
+        if append:
+            self.chat_window.insert("end", text + "\n")
+        else:
+            self.chat_window.delete("1.0", "end")
+            self.chat_window.insert("end", text + "\n")
+        self.chat_window.configure(state="disabled")
+        self.chat_window.yview("end")
 
     def start_conversation(self):
-        self.update_text_area(self.history_text_area, "Starting new conversation...\n")
-        self.update_text_area(self.results_text_area, "Extracted data will update after each answer.")
-        self.answer_entry.delete(0, tk.END)
-        self.answer_entry.config(state=tk.NORMAL)
-        self.submit_button.config(state=tk.NORMAL)
-        self.start_button.config(state=tk.DISABLED) # Disable start button once conversation begins
-
         try:
-            response = requests.get(f"{self.backend_url}/start_conversation")
-            response.raise_for_status()
-            data = response.json()
-            if data["status"] == "in_progress":
-                self.question_label.config(text=data["question"])
-                self.update_text_area(self.history_text_area, f"Q: {data['question']}\n", append=True)
-                self.answer_entry.focus_set()
-            else:
-                self.question_label.config(text="Error: Could not start conversation.")
-                messagebox.showerror("Error", "Backend did not return a question to start.")
-        except requests.exceptions.ConnectionError:
-            messagebox.showerror("Connection Error", "Could not connect to the Flask backend. Make sure it's running.")
-            self.question_label.config(text="Connection Error. Check backend.")
-            self.start_button.config(state=tk.NORMAL) # Re-enable start on connection error
+            resp = requests.get(f"{self.backend_url}/start_conversation")
+            resp.raise_for_status()
+            data = resp.json()
+            question = data.get("question", "Δεν λάβαμε ερώτηση από το σύστημα.")
+            self.update_chat(f"🤖: {question}", append=False)
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {e}")
-            self.question_label.config(text=f"Error: {e}")
-            self.start_button.config(state=tk.NORMAL)
+            self.update_chat(f"❌ Σφάλμα κατά την έναρξη: {e}", append=False)
 
-    def submit_answer_wrapper(self):
-        # This wrapper prevents submission if the button is disabled
-        if self.submit_button['state'] == tk.DISABLED:
-            return
-        self.submit_answer()
-
-    def submit_answer(self):
-        answer = self.answer_entry.get().strip()
-        if not answer:
-            messagebox.showwarning("Missing Answer", "Please provide an answer.")
+    def send_answer(self):
+        answer = self.entry.get().strip()
+        if not answer or answer == self.placeholder_text:
             return
 
-        # Add user's answer to history
-        current_question_text = self.question_label.cget("text")
-        self.update_text_area(self.history_text_area, f"A: {answer}\n\n", append=True)
+        if not self.frame_hidden:
+            self.top_frame.place_forget()
+            self.frame_hidden = True
 
+        self.update_chat(f"👤: {answer}")
+        self.entry.delete(0, "end")
 
         try:
-            response = requests.post(
+            resp = requests.post(
                 f"{self.backend_url}/submit_answer",
                 json={"answer": answer}
             )
-            response.raise_for_status()
-            data = response.json()
+            resp.raise_for_status()
+            data = resp.json()
 
-            # Update processed data
-            if data.get("extracted_data"):
-                self.update_text_area(self.results_text_area, json.dumps(data["extracted_data"], indent=2, ensure_ascii=False))
+            next_q = data.get("question", "")
+            status = data.get("status", "")
+            if status == "finished":
+                self.update_chat("🎉 Όλες οι ερωτήσεις έχουν ολοκληρωθεί.")
             else:
-                self.update_text_area(self.results_text_area, "No data extracted yet or error in processing.", append=True)
-
-
-            if data["status"] == "in_progress":
-                self.question_label.config(text=data["question"])
-                self.update_text_area(self.history_text_area, f"Q: {data['question']}\n", append=True)
-                self.answer_entry.delete(0, tk.END)
-                self.answer_entry.focus_set() # Keep focus on the answer entry
-            elif data["status"] == "finished":
-                self.question_label.config(text=data["question"])
-                self.update_text_area(self.history_text_area, f"{data['question']}\n", append=True)
-                self.answer_entry.config(state=tk.DISABLED)
-                self.submit_button.config(state=tk.DISABLED)
-                self.start_button.config(state=tk.NORMAL) # Re-enable start button
-                messagebox.showinfo("Conversation Finished", "All questions answered! Check the processed data.")
-            else: # Handle potential 'error' status from backend
-                 messagebox.showerror("Backend Error", f"An error occurred on the backend: {data.get('error_details', 'Unknown error')}")
-                 self.question_label.config(text="Backend Error during processing.")
-                 self.answer_entry.config(state=tk.DISABLED)
-                 self.submit_button.config(state=tk.DISABLED)
-
-        except requests.exceptions.ConnectionError:
-            messagebox.showerror("Connection Error", "Could not connect to the Flask backend. Make sure it's running.")
-            self.question_label.config(text="Connection Error. Check backend.")
-            self.answer_entry.config(state=tk.DISABLED)
-            self.submit_button.config(state=tk.DISABLED)
-            self.start_button.config(state=tk.NORMAL) # Re-enable start on connection error
+                self.update_chat(f"🤖: {next_q}")
         except Exception as e:
-            messagebox.showerror("Error", f"An unexpected error occurred: {e}")
-            self.question_label.config(text=f"Error: {e}")
-            self.answer_entry.config(state=tk.DISABLED)
-            self.submit_button.config(state=tk.DISABLED)
+            self.update_chat(f"❌ Σφάλμα κατά την αποστολή: {e}")
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = NLPQuestionApp(root)
+    root = ctk.CTk()
+    app = SimpleNLPApp(root)
     root.mainloop()
