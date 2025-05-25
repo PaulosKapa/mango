@@ -8,10 +8,12 @@ def incident_process(nlp, text):
     # Define keywords/phrases strongly indicating an accident or collision in Greek
     # These are usually verbs or key nouns related to the incident itself.
     accident_indicators = [
-        "ατύχημα", "συγκρούστηκε", "σύγκρουση", "εξετράπη", "φρέναρε",
-        "πρόσκρουση"
-    ]
-
+    "ατύχημα", "συγκρούστηκε", "σύγκρουση", "εξετράπη", "φρέναρε",
+    "πρόσκρουση", "τρακάρισμα", "τρακάρισε", "χτύπησε", "χτυπήθηκε",
+    "ανατροπή", "ανατράπηκε", "εκτροπή", "παραβίασε", "δεν σταμάτησε",
+    "εκτροχιασμός", "εκτροχιάστηκε", "προσέκρουσε", "ζημιά", "ζημιές",
+    "οδική", "αυτοκινητιστικό", "συμβάν", "παραβίαση", "προσέκρουσε"
+]
     for sent in doc.sents:
         sent_text_lower = sent.text.lower()
         
